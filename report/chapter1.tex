@@ -68,5 +68,108 @@
 
 \subsection{卷积神经网络}
 
-以28*28的输入图像，一层卷积、一层池化、一层全连接的神经网络为例，如\reffig{fig:cnn-example-1}。
+以28*28的输入图像，一层卷积、一层池化、一层全连接的神经网络为例，如\reffig{fig:cnn-example-1}。CNN的模型参数只有卷积层的权值矩阵和偏置，全连接层的权值矩阵和偏置。因此求导顺序如下：
+
+\begin{enumerate}
+\item 交叉熵损失函数
+\item softmax激活函数
+\item 全连接层
+\item 池化层
+\item sigmoid激活函数
+\item 卷积层
+\end{enumerate}
+
+\subsubsection{交叉熵损失函数}
+
+交叉熵定义为$y=-(\sum_{i}^{n}{y_i log(\hat{y_i}) + (1-y_i)log(1-\hat{y_i})})$，因此其导数定义如\refeq{eq:CELF}。
+
+\begin{equation}\label{eq:CELF}
+\begin{aligned}
+\frac{\Delta y}{\Delta \hat{y_i}} &= \frac{1-y_i}{1-\hat{y_i}} - \frac{y_i}{\hat{y_i}}
+\end{aligned}
+\end{equation}
+
+\subsubsection{softmax激活函数}
+
+softmax激活函数定义为$y = \frac{e^{x_i}}{\sum_{k=1}^{n}{x_k}}$，其导函数定义如\refeq{eq:softmax-bp}。
+
+\begin{equation}\label{eq:softmax-bp}
+\begin{aligned}
+\frac{\Delta y}{\Delta x_i} &= e^{x_i} \frac{\sum_{k=1}^{n}{e^{x_k}} - e^{x_i}}{(\sum_{k=1}^{n}{e^{x_k}})^2}
+\end{aligned}
+\end{equation}
+
+\subsubsection{全连接层}
+
+全连接层可以由$y=\sum_{k=1}^{n}{x_k w_k} + b$，其中$w_k$是第$k$个输入$x_k$的权重。因此其对$w_k$和$b$的导数定义为如\refeq{eq:affine-bp}。
+
+\begin{equation}\label{eq:affine-bp}
+\begin{aligned}
+\frac{\Delta y}{\Delta w_i} &= x_i \\
+\frac{\Delta y}{\Delta b} &= 1
+\end{aligned}
+\end{equation}
+
+由于下面的卷积层仍然需要用到全连接层对输入的导数，因此求出全连接层对输入的导数如\refeq{eq:affine-x-bp}。
+
+\begin{equation}\label{eq:affine-x-bp}
+\begin{aligned}
+\frac{\Delta y}{x_i} &= w_i
+\end{aligned}
+\end{equation}
+
+\subsubsection{池化层}
+
+池化层对全连接层的输入进行了重新排列组合并加权平均。池化层的输入和输出分别是$[x_1, x_2, \dots, x_{2n^2}]$和$[y_1, y_2, \dots , y_{n^2}]$，其对应关系可以用\refeq{eq:pooling-bp}描述。
+
+\begin{equation}\label{eq:pooling-bp}
+\begin{aligned}
+y_i &= \frac{ x_{2 [\frac{i}{n}] \times 2n + 2(i \% n)} + x_{2 [\frac{i}{n}] \times 2n + 2(i \% n + 1)} + x_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n)} + x_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n + 1)} }{4}
+\end{aligned}
+\end{equation}
+
+池化层的导数恒为$\frac{1}{4}$，因此对于梯度下降并没有影响。
+
+\subsubsection{sigmoid激活函数}
+
+sigmoid激活函数定义为$y=\frac{1}{1+e^{-x}}$，sigmoid的导函数如\refeq{eq:sigmoid-bp}。
+
+\begin{equation}\label{eq:sigmoid-bp}
+\begin{aligned}
+\frac{\Delta y}{\Delta x} = y(1-y)
+\end{aligned}
+\end{equation}
+
+\subsubsection{卷积层}
+
+卷积层对输入的图像执行了卷积操作，可以用如\refeq{eq:convolution-layer}描述卷积层执行的操作。
+
+\begin{equation}\label{eq:convolution-layer}
+\begin{aligned}
+\begin{bmatrix}
+y_1 \\ y_2 \\ \dots \\ y_m
+\end{bmatrix}
+&=
+\begin{bmatrix}
+x_{11} & x_{12} & \dots & x_{1n} \\
+x_{21} & x_{22} & \dots & x_{2n} \\
+\dots & \dots &   & \dots \\
+x_{m1} & x_{m2} & \dots & x_{mn} 
+\end{bmatrix}
+\times
+\begin{bmatrix}
+w_1 \\ w_2 \\ \dots \\ w_n
+\end{bmatrix}
+\end{aligned}
+\end{equation}
+
+因此，卷积层的导数如\refeq{eq:convolution-bp}。
+
+\begin{equation}\label{eq:convolution-bp}
+\begin{aligned}
+\frac{\Delta y_i}{\Delta w_j} &= x_{ij}
+\end{aligned}
+\end{equation}
+
+最后使用导数的求导法则，将这些导数相互嵌套，即可求出对权值和偏置的导数，并沿导数下降的方向更新权值和偏置。
 

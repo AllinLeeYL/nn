@@ -1,9 +1,9 @@
-import numpy as np
-
 """
 优化器
 每一个优化器函数都返回对应函数名的导函数值
 """
+
+import numpy as np
 
 # 均方误差函数的导数(真实结果，预测输出)
 def MSE_bp(y, x):
@@ -34,7 +34,7 @@ def params_bp(y, x, X, pooling_result, W, C_X, alpha):
         b2[i] = x1 * alpha # 全连接导数
         for j in range(0, 12*12):
             x2 = x1 * W[1][i][j] # 全连接对x求导
-            x2 *= pooling_result[0, j](1-pooling_result[0, j])
+            x2 *= pooling_result[0, j](1-pooling_result[0, j]) # sigmoid激活函数
             w = j % 12
             h = j / 12
             for k in range(0, 5*5):
