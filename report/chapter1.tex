@@ -2,7 +2,11 @@
 
 \section{BP算法推导}
 
-反向传播算法使用梯度下降策略对神经网络参数进行调整。以全连接神经网络为例，如\reffig{fig:nn-module-complete}，该网络有三层：
+反向传播算法使用梯度下降策略对神经网络参数进行调整。
+
+\subsection{全连接神经网络}
+
+以如\reffig{fig:nn-module-complete}的三层全连接神经网络为例：
 
 \begin{enumerate}
 \item 含有$d$个神经元的输入层
@@ -21,7 +25,7 @@
 
 定义误差函数为$E=\frac{\sum_{i=1}^{l}{(\hat{y_i} - y_i)^2}}{2}$，即均方误差函数。以隐层到输出层的参数调整为例。
 
-\subsection{权重调整}
+\subsubsection{权重调整}
 
 权重$w_{ij}$的调整方式如\refeq{eq:update-w}。
 
@@ -41,7 +45,7 @@
 \end{aligned}
 \end{equation}
 
-\subsection{阈值调整}
+\subsubsection{阈值调整}
 
 类似于权重调整，也对$E$求阈值$\theta$的导数。
 
@@ -61,3 +65,8 @@
 \end{equation}
 
 每次训练后，朝误差减少的方向调整参数。其中$\eta$是学习率。
+
+\subsection{卷积神经网络}
+
+以28*28的输入图像，一层卷积、一层池化、一层全连接的神经网络为例，如\reffig{fig:cnn-example-1}。
+
