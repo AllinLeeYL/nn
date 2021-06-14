@@ -42,7 +42,7 @@ def params_bp(y, x, X, pooling_result, W, C_X, alpha):
                 W1[i, k] += x2 * X[2*w + (2*h+1)*24, k]
                 W1[i, k] += x2 * X[2*w+1 + (2*h+1)*24, k]
             b1[i] += x2
-        W1[i, :] = W1[i, :] / (12 * 12)
-        b1[i] = b1[i] / (12 * 12)
+        W1[i, :] = W1[i, :] / (12 * 12) * alpha
+        b1[i] = b1[i] / (12 * 12) * alpha
     return [W1, W2], [b1, b2]
     
