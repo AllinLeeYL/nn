@@ -34,6 +34,7 @@ def params_bp(y, x, X, pooling_result, W, C_X, alpha):
         b2[i] = x1 * alpha # 全连接导数
         for j in range(0, 12*12):
             x2 = x1 * W[1][i][j] # 全连接对x求导
+            x2 *= pooling_result[0, j](1-pooling_result[0, j])
             w = j % 12
             h = j / 12
             for k in range(0, 5*5):
