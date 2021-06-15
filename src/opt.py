@@ -3,47 +3,47 @@
 每一个优化器函数都返回对应函数名的导函数值
 """
 
-import numpy as np
-
-# 均方误差函数的导数(真实结果，预测输出)
-def MSE_bp(y, x):
-    return y - x
-
-# 交叉熵损失函数的导数(真实结果，预测输出)
-def CE_bp(y, x):
-    return (1-y)/(1-x) - y/x
-
-# softmax函数的导数(向量X，求导的分量索引i)
-def softmax_bp(X, i):
-    total = sum([np.exp(x) for x in X])
-    return (total - np.exp(X[i])) / (total**2)
-
-# ([]，学习率)
-# [真实输出，softmax输出，全连接输出，pooling输出，权值矩阵W, 卷积层输入X]
-# [3], [3], [3], [1, 144], [2, ...]
-def params_bp(y, x, X, pooling_result, W, C_X, alpha):
-    W1 = np.ones((3, 5 * 5, 1))
-    b1 = np.zeros((3))
-    W2 = np.ones((3 , 12*12, 1))
-    b2 = np.zeros((3))
-    for i in range(0, 3):
-        x1 = CE_bp(y[i], x[i]) # 交叉熵导数
-        x1 *= softmax_bp(X, i) # softmax导数
-        for j in range(0, 12*12):
-            W2[i, j] = x1 * pooling_result[0, j] * alpha # 全连接导数
-        b2[i] = x1 * alpha # 全连接导数
-        for j in range(0, 12*12):
-            x2 = x1 * W[1][i][j] # 全连接对x求导
-            x2 *= pooling_result[0, j](1-pooling_result[0, j]) # sigmoid激活函数
+def bp(W, b, params, alpha):
+    y_res = params[0] # 标准输出 numpy.array[3]
+    y_p = params[1] # 预测输出 numpy.array[3]
+    a = params[2] # 全连接层输入 numpy.array[144]
+    c = params[3] # sigmoid激活函数输出 numpy.array[576]
+    u = params[4] # 卷积层的输入矩阵 numpy.array[576, 25]
+    # 梯度下降
+    for i in range(len(W[0].shape[0])):
+        t = (y_p[i] - y_res[i]) * alpha
+        # 全连接层参数-偏置b
+        b[1][i] -= t
+        # 全连接层参数-权值w
+        for j in range(len(W[1].shape[1])):
+            W[1][i, j] -= t*a[j]
+        # 卷积层参数-偏置b
+        total = 0
+        for j in range(len(W[1].shape[1])):
             w = j % 12
-            h = j / 12
-            for k in range(0, 5*5):
-                W1[i, k] += x2 * X[2*w + 2*h*24, k]
-                W1[i, k] += x2 * X[2*w+1 + 2*h*24, k]
-                W1[i, k] += x2 * X[2*w + (2*h+1)*24, k]
-                W1[i, k] += x2 * X[2*w+1 + (2*h+1)*24, k]
-            b1[i] += x2
-        W1[i, :] = W1[i, :] / (12 * 12) * alpha
-        b1[i] = b1[i] / (12 * 12) * alpha
-    return [W1, W2], [b1, b2]
-    
+            h = int(j / 12)
+            l1 = 2*w + 2*h*24
+            l2 = 2*w+1 + 2*h*24
+            l3 = 2*w + (2*h+1)*24
+            l4 = 2*w+1 + (2*h+1)*24
+            total += c[l1](1-c[l1])
+            total += c[l2](1-c[l2])
+            total += c[l3](1-c[l3])
+            total += c[l4](1-c[l4])
+        b[0][i] -= t * W[1][i, j] * total
+        # 卷积层参数-权值w
+        for k in range(len(W[0].shape[1])):
+            total = 0
+            for j in range(len(W[1].shape[1])):
+                w = j % 12
+                h = int(j / 12)
+                l1 = 2*w + 2*h*24
+                l2 = 2*w+1 + 2*h*24
+                l3 = 2*w + (2*h+1)*24
+                l4 = 2*w+1 + (2*h+1)*24
+                total += c[l1](1-c[l1]) * u[l1, k]
+                total += c[l2](1-c[l2]) * u[l2, k]
+                total += c[l3](1-c[l3]) * u[l3, k]
+                total += c[l4](1-c[l4]) * u[l4, k]
+            W[0][i, k] -= t * W[1][i, j] * total
+    return W, b

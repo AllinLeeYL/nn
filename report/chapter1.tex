@@ -81,21 +81,37 @@
 
 \subsubsection{交叉熵损失函数}
 
-交叉熵定义为$y=-(\sum_{i}^{n}{y_i log(\hat{y_i}) + (1-y_i)log(1-\hat{y_i})})$，因此其导数定义如\refeq{eq:CELF}。
+交叉熵定义为$CELF=-(\sum_{k=1}^{n}y_klog(\hat{y_k}))$，因此其导数定义如\refeq{eq:CELF}。
 
 \begin{equation}\label{eq:CELF}
 \begin{aligned}
-\frac{\Delta y}{\Delta \hat{y_i}} &= \frac{1-y_i}{1-\hat{y_i}} - \frac{y_i}{\hat{y_i}}
+\frac{\Delta CELF}{\Delta \hat{y_k}} &= -\frac{y_k}{\hat{y_k}}
 \end{aligned}
 \end{equation}
 
 \subsubsection{softmax激活函数}
 
-softmax激活函数定义为$y = \frac{e^{x_i}}{\sum_{k=1}^{n}{x_k}}$，其导函数定义如\refeq{eq:softmax-bp}。
+softmax激活函数定义为$y_i = \frac{e^{x_i}}{\sum_{k=1}^{n}{x_k}}$，其导函数定义如\refeq{eq:softmax-bp}。
 
 \begin{equation}\label{eq:softmax-bp}
 \begin{aligned}
-\frac{\Delta y}{\Delta x_i} &= e^{x_i} \frac{\sum_{k=1}^{n}{e^{x_k}} - e^{x_i}}{(\sum_{k=1}^{n}{e^{x_k}})^2}
+\frac{\partial y_i}{\partial x_j} &=
+\begin{cases}
+\frac{e^{x_j}(\sum_{k=1}^{n}{e^{x_k}} - e^{x_j})}{(\sum_{k=1}^{n}{e^{x_k}})^2} = y_i(1-y_i), & \text{i == j} \\
+\frac{0-e^{x_i}e^{x_j}}{(\sum_{k=1}^{n}{e^{x_k}})^2} = -y_iy_j, & \text{i != j}
+\end{cases}
+\end{aligned}
+\end{equation}
+
+求softmax激活函数的输入$x_i$对于CELF的导数如\refeq{eq:CELF-softmax}。
+
+\begin{equation}\label{eq:CELF-softmax}
+\begin{aligned}
+\frac{\partial CELF}{\partial x_i} &= \sum_{k=1}^{n}{\frac{\partial CELF}{\partial y_k} \frac{\partial y_k}{x_i}} \\
+&=  -\frac{y_i}{\hat{y_i}}\hat{y_i}(1-\hat{y_i}) + \sum_{k \neq i}\frac{y_k}{\hat{y_k}} {\hat{y_i}\hat{y_k}} \\
+&= y_i\hat{y_i} + \sum_{k \neq i}{y_k\hat{y_i}} - y_i \\
+&= \hat{y_i}\sum_{k=1}^{n}{y_k} - y_i \\
+&= \hat{y_i} - y_i
 \end{aligned}
 \end{equation}
 
@@ -110,21 +126,41 @@ softmax激活函数定义为$y = \frac{e^{x_i}}{\sum_{k=1}^{n}{x_k}}$，其导�
 \end{aligned}
 \end{equation}
 
-由于下面的卷积层仍然需要用到全连接层对输入的导数，因此求出全连接层对输入的导数如\refeq{eq:affine-x-bp}。
+由此得到CELF对权重$w_k$和偏置$b$的导数如\refeq{eq:CELF-affline-w-b}。其中$x_i$为softmax激活函数的输入，$w_j$为全连接层第$j$输入$a_j$的权重
 
-\begin{equation}\label{eq:affine-x-bp}
+\begin{equation}\label{eq:CELF-affline-w-b}
 \begin{aligned}
-\frac{\Delta y}{x_i} &= w_i
+\frac{\partial CELF}{\partial w_j} &=
+\frac{\partial CELF}{\partial x_i} \frac{\partial x_i}{\partial w_j} \\
+&= (\hat{y_i} - y_i)a_j \\
+\frac{\partial CELF}{\partial b} &=
+\frac{\partial CELF}{\partial x_i} \frac{\partial x_i}{\partial b} \\
+&= (\hat{y_i} - y_i)
+\end{aligned}
+\end{equation}
+
+由于下面的卷积层仍然需要用到全连接层对输入的导数，因此求出CELF对输入$a_j$的导数如\refeq{eq:affine-a-bp}。
+
+\begin{equation}\label{eq:affine-a-bp}
+\begin{aligned}
+\frac{\partial CELF}{\partial a_j} &=
+\frac{\partial CELF}{\partial x_i} \frac{\partial x_i}{\partial a_j} \\
+&= (\hat{y_i} - y_i)w_j
 \end{aligned}
 \end{equation}
 
 \subsubsection{池化层}
 
-池化层对全连接层的输入进行了重新排列组合并加权平均。池化层的输入和输出分别是$[x_1, x_2, \dots, x_{2n^2}]$和$[y_1, y_2, \dots , y_{n^2}]$，其对应关系可以用\refeq{eq:pooling-bp}描述。
+池化层对全连接层的输入进行了重新排列组合并加权平均。池化层的输入和输出分别是$[c_1, c_2, \dots, c_{2n^2}]$和$[a_1, a_2, \dots , a_{n^2}]$，其对应关系可以用\refeq{eq:pooling-bp}描述。
 
 \begin{equation}\label{eq:pooling-bp}
 \begin{aligned}
-y_i &= \frac{ x_{2 [\frac{i}{n}] \times 2n + 2(i \% n)} + x_{2 [\frac{i}{n}] \times 2n + 2(i \% n + 1)} + x_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n)} + x_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n + 1)} }{4}
+a_i &= \frac{ 
+c_{2 [\frac{i}{n}] \times 2n + 2(i \% n)} +
+c_{2 [\frac{i}{n}] \times 2n + 2(i \% n + 1)} + 
+c_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n)} + 
+c_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n + 1)} }
+{4}
 \end{aligned}
 \end{equation}
 
@@ -132,11 +168,11 @@ y_i &= \frac{ x_{2 [\frac{i}{n}] \times 2n + 2(i \% n)} + x_{2 [\frac{i}{n}] \ti
 
 \subsubsection{sigmoid激活函数}
 
-sigmoid激活函数定义为$y=\frac{1}{1+e^{-x}}$，sigmoid的导函数如\refeq{eq:sigmoid-bp}。
+sigmoid激活函数定义为$c=\frac{1}{1+e^{-d}}$，sigmoid的导函数如\refeq{eq:sigmoid-bp}。
 
 \begin{equation}\label{eq:sigmoid-bp}
 \begin{aligned}
-\frac{\Delta y}{\Delta x} = y(1-y)
+\frac{\partial c}{\partial d} = c(1-c)
 \end{aligned}
 \end{equation}
 
@@ -147,18 +183,22 @@ sigmoid激活函数定义为$y=\frac{1}{1+e^{-x}}$，sigmoid的导函数如\refe
 \begin{equation}\label{eq:convolution-layer}
 \begin{aligned}
 \begin{bmatrix}
-y_1 \\ y_2 \\ \dots \\ y_m
+d_1 \\ d_2 \\ \dots \\ d_m
 \end{bmatrix}
 &=
 \begin{bmatrix}
-x_{11} & x_{12} & \dots & x_{1n} \\
-x_{21} & x_{22} & \dots & x_{2n} \\
+u_{11} & u_{12} & \dots & u_{1n} \\
+u_{21} & u_{22} & \dots & u_{2n} \\
 \dots & \dots &   & \dots \\
-x_{m1} & x_{m2} & \dots & x_{mn} 
+u_{m1} & u_{m2} & \dots & u_{mn} 
 \end{bmatrix}
 \times
 \begin{bmatrix}
-w_1 \\ w_2 \\ \dots \\ w_n
+v_1 \\ v_2 \\ \dots \\ v_n
+\end{bmatrix}
++
+\begin{bmatrix}
+q \\ q \\ \dots \\ q
 \end{bmatrix}
 \end{aligned}
 \end{equation}
@@ -167,9 +207,30 @@ w_1 \\ w_2 \\ \dots \\ w_n
 
 \begin{equation}\label{eq:convolution-bp}
 \begin{aligned}
-\frac{\Delta y_i}{\Delta w_j} &= x_{ij}
+\frac{\partial d_i}{\partial v_j} &= u_{ij} \\
+\frac{\partial d_i}{\partial q} &= 1
 \end{aligned}
 \end{equation}
 
-最后使用导数的求导法则，将这些导数相互嵌套，即可求出对权值和偏置的导数，并沿导数下降的方向更新权值和偏置。
+最终推出CELF对权重$v_k$和偏置$q$的导数公式如\refeq{eq:CELF-v-q}，其中$\frac{\partial CELF}{\partial a_j}$是$CELF$对全连接层输入$a_j$的导数，$\frac{\partial a_j}{\partial c_l} \frac{\partial c_l}{\partial d_l}$是$a_j$对卷积层输出$d_l$的导数，$\frac{\partial d_l}{\partial v_k}$是卷积层输出$d_l$对权重$v_k$的导数。
+
+\begin{equation}\label{eq:CELF-v-q}
+\begin{aligned}
+\frac{\partial CELF}{\partial v_k} &=
+\sum_{j}\frac{\partial CELF}{\partial a_j} % CELF、softmax、全连接
+\sum_{l}\frac{\partial a_j}{\partial c_l} \frac{\partial c_l}{\partial d_l} % 池化、sigmoid
+\frac{\partial d_l}{\partial v_k} \\ % 卷积
+&=
+\sum_{j}(\hat{y_i} - y_i)w_j % CELF、softmax、全连接
+\sum_{l}\frac{1}{4}c_l(1-c_l) % 池化、sigmoid
+u_{lk} \\ % 卷积
+\frac{\partial CELF}{\partial b} &=
+\sum_{j}\frac{\partial CELF}{\partial a_j} % CELF、softmax、全连接
+\sum_{l}\frac{\partial a_j}{\partial c_l} \frac{\partial c_l}{\partial d_l} % 池化、sigmoid
+\frac{\partial d_l}{\partial b} \\ % 卷积
+&=
+\sum_{j}(\hat{y_i} - y_i)w_j % CELF、softmax、全连接
+\sum_{l}\frac{1}{4}c_l(1-c_l) % 池化、sigmoid、卷积
+\end{aligned}
+\end{equation}
 
