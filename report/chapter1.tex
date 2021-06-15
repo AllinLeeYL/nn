@@ -155,11 +155,13 @@ softmax激活函数定义为$y_i = \frac{e^{x_i}}{\sum_{k=1}^{n}{x_k}}$，其导
 
 \begin{equation}\label{eq:pooling-bp}
 \begin{aligned}
+w &= i \% n \\
+h &= [\frac{i}{n}] \\
 a_i &= \frac{ 
-c_{2 [\frac{i}{n}] \times 2n + 2(i \% n)} +
-c_{2 [\frac{i}{n}] \times 2n + 2(i \% n + 1)} + 
-c_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n)} + 
-c_{2 ([\frac{i}{n}] + 1) \times 2n + 2(i \% n + 1)} }
+c_{2 h \times 2n + 2w} +
+c_{2 h \times 2n + 2w + 1} + 
+c_{ (2h + 1) \times 2n + 2w} + 
+c_{ (2h + 1) \times 2n + 2w + 1} }
 {4}
 \end{aligned}
 \end{equation}

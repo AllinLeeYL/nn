@@ -9,6 +9,7 @@ def bp(W, b, params, alpha):
     a = params[2] # 全连接层输入 numpy.array[144]
     c = params[3] # sigmoid激活函数输出 numpy.array[576]
     u = params[4] # 卷积层的输入矩阵 numpy.array[576, 25]
+    n = params[5] # 池化层输出的宽或高
     # 梯度下降
     for i in range(len(W[0].shape[0])):
         t = (y_p[i] - y_res[i]) * alpha
@@ -20,12 +21,12 @@ def bp(W, b, params, alpha):
         # 卷积层参数-偏置b
         total = 0
         for j in range(len(W[1].shape[1])):
-            w = j % 12
-            h = int(j / 12)
-            l1 = 2*w + 2*h*24
-            l2 = 2*w+1 + 2*h*24
-            l3 = 2*w + (2*h+1)*24
-            l4 = 2*w+1 + (2*h+1)*24
+            w = j % n
+            h = int(j / n)
+            l1 = 2*w + 2*h*2*n
+            l2 = 2*w+1 + 2*h*2*n
+            l3 = 2*w + (2*h+1)*2*n
+            l4 = 2*w+1 + (2*h+1)*2*n
             total += c[l1](1-c[l1])
             total += c[l2](1-c[l2])
             total += c[l3](1-c[l3])
@@ -35,12 +36,12 @@ def bp(W, b, params, alpha):
         for k in range(len(W[0].shape[1])):
             total = 0
             for j in range(len(W[1].shape[1])):
-                w = j % 12
-                h = int(j / 12)
-                l1 = 2*w + 2*h*24
-                l2 = 2*w+1 + 2*h*24
-                l3 = 2*w + (2*h+1)*24
-                l4 = 2*w+1 + (2*h+1)*24
+                w = j % n
+                h = int(j / n)
+                l1 = 2*w + 2*h*2*n
+                l2 = 2*w+1 + 2*h*2*n
+                l3 = 2*w + (2*h+1)*2*n
+                l4 = 2*w+1 + (2*h+1)*2*n
                 total += c[l1](1-c[l1]) * u[l1, k]
                 total += c[l2](1-c[l2]) * u[l2, k]
                 total += c[l3](1-c[l3]) * u[l3, k]
