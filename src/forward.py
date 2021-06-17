@@ -4,7 +4,9 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
 import matplotlib.pyplot as plt
+import opt
 
+params = []
 
 def plot_image(image,isRaw=0):
     """
@@ -141,19 +143,31 @@ def forward(X, W, b):
     :return: 3类结果的预测值，1*3的向量。
     '''
     cal_X = im2col_forward(X, 5, 5, 1)  # 首先把矩阵拉伸成向量
-    conv_result = np.zeros((3,576,1))
+    params.append(cal_X)
+    conv_result = np.zeros((3, 576, 1))
     pooling_result = np.zeros((3, 12, 12))  # 预设超参数，3个5*5的卷积核，池化矩阵为2*2
     result = np.zeros((3))
     for i in range(3):
-        conv_result[i] = convolution_forward(cal_X, W[0][i], b[0][i]) #卷积层
-        pooling_result[i] = pooling_forward(conv_result[i], [24, 24], 2, 2) #池化层
+        conv_result[i] = convolution_forward(cal_X, W[0][i], b[0][i])  # 卷积层
+        pooling_result[i] = pooling_forward(conv_result[i], [24, 24], 2, 2)  # 池化层
         # 全连接（注意池化出来的是二维，因此需要换为一维再计算全连接）
         result[i] = Affine_forward(im2col_forward(pooling_result[i], 12, 12, 1), W[1][i], b[1][i])
+    temp = np.zeros((3, 576))
+    for i in range(3):
+        for j in range(576):
+            temp[i][j] = conv_result[i][j][0]
+    params.append(temp)
+    params.append(2)
+    temp = np.zeros((3, 144))
+    for i in range(3):
+        temp[i] = im2col_forward(pooling_result[i], 12, 12, 1)
+    params.append(temp)
     result = softmax(result)
+    params.append(result)
     #print(result)
     return result
 
-def forward_all(images,W,b):
+def forward_all(images,W,b,label):
     '''
     :param images:所有图片
     :param W: 权值矩阵
@@ -161,9 +175,33 @@ def forward_all(images,W,b):
     :return: 所有图片的预测值
     '''
     result=[]
+    i = 0
     for image in images:
-        result.append(forward(image,W,b))
+        params.clear()
+        y_res = np.zeros((3))
+        y_res[int(label[i])] = 1
+        params.append(y_res)
+        result.append(forward(image, W, b))
+        opt.bp(W, b, params, 0.001)
+        i += 1
     return result
+
+def predict(images,W,b,label):
+    '''
+    :param images:所有图片
+    :param W: 权值矩阵
+    :param b: 偏置矩阵
+    :return: 所有图片的预测值
+    '''
+    result=[]
+    i = 0
+    error = 0
+    for image in images:
+        result = (forward(image, W, b))
+        if np.argmax(result) == label[i]:
+            error += 1
+        i += 1
+    return error
 
 def data_pre_processing(images):
     '''
@@ -194,14 +232,93 @@ def weight_initialise():
     b=[b1,b2]
     return W,b
 
+def record(old_W, old_b, W, b):
+    for n in range(3):
+        for i in range(25):
+            old_W[0][n][i][0] = W[0][n][i][0]
+    for n in range(3):
+        for i in range(144):
+            old_W[1][n][i][0] = W[1][n][i][0]
+
+    for j in range(2):
+        for i in range(3):
+            old_b[j][i] = b[j][i]
+
+def calculate(old_W, old_b):
+    result = 0.
+    for n in range(3):
+        for i in range(25):
+            result += old_W[0][n][i][0]**2
+    for n in range(3):
+        for i in range(144):
+            result += old_W[1][n][i][0]**2
+
+    for j in range(2):
+        for i in range(3):
+            result += old_b[j][i]**2
+    return result ** 0.5
+
+
 if __name__ == "__main__":
     train = tfds.load('mnist', split='train', shuffle_files=True)
     train = train.shuffle(1024).batch(128).repeat(5).prefetch(10)
+    W, b = weight_initialise()
+    total = 0
     for example in tfds.as_numpy(train):
         data, labels = example["image"], example["label"]
-    images = data_pre_processing(data)
-    plot_image(images[0])
-    W,b=weight_initialise()
-    result = forward_all(images, W, b)  # 选一张图片进行计算
-    print(result)
+        num = 0
+        for i in range(labels.shape[0]):
+            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
+                num += 1
+        pick_data = np.zeros((num, 28, 28, 1))
+        pick_label = np.zeros((num))
+        num = 0
+        for i in range(labels.shape[0]):
+            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
+                pick_data[num] = data[i]  # 取出训练集中所有的012
+                pick_label[num] = labels[i]
+                num += 1
+        total += num
+        images = data_pre_processing(pick_data)
+        old_W, old_b = weight_initialise()
+        record(old_W, old_b, W, b)
+        result = forward_all(images, W, b, pick_label)  # 选一张图片进行计算
+        for i in range(2):
+            old_W[i] = old_W[i] - W[i]
+            old_b[i] = old_b[i] - b[i]
+        if calculate(old_W, old_b) < 1:
+            break
+    print("训练集个数：", total)
 
+        #  print(result)
+
+    total = 0
+    error = 0
+    test = tfds.load('mnist', split='test', shuffle_files=True)
+    test = test.shuffle(1024).batch(128).repeat(5).prefetch(10)
+    round = 0
+    for example in tfds.as_numpy(test):
+        data, labels = example["image"], example["label"]
+        num = 0
+        for i in range(labels.shape[0]):
+            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
+                num += 1
+        pick_data = np.zeros((num, 28, 28, 1))
+        pick_label = np.zeros((num))
+        num = 0
+        for i in range(labels.shape[0]):
+            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
+                pick_data[num] = data[i]  # 取出训练集中所有的012
+                pick_label[num] = labels[i]
+                num += 1
+        images = data_pre_processing(pick_data)
+        total += num
+        error += predict(images, W, b, pick_label)  # 选一张图片进行计算
+        if round == 5:
+            break
+        else:
+            round += 1
+    print("测试集总数：", total)
+    print("错误数：", error)
+    print("错误率：", error / total)
+    # print(W, b)
