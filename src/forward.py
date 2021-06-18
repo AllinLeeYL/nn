@@ -177,10 +177,12 @@ def forward_all(images,W,b,label):
     result=[]
     i = 0
     for image in images:
-        params.clear()
+        if i % 10 == 0:
+            print("当前训练到:%d/%d个图像" % (i,images.shape[0]))
+        params.clear()#每一轮清除所有用于bp的参数
         y_res = np.zeros((3))
         y_res[int(label[i])] = 1
-        params.append(y_res)
+        params.append(y_res)#加入bp最后一层的参数
         result.append(forward(image, W, b))
         opt.bp(W, b, params, 0.001)
         i += 1
@@ -198,7 +200,7 @@ def predict(images,W,b,label):
     error = 0
     for image in images:
         result = (forward(image, W, b))
-        if np.argmax(result) == label[i]:
+        if np.argmax(result) != label[i]:
             error += 1
         i += 1
     return error
@@ -258,67 +260,57 @@ def calculate(old_W, old_b):
             result += old_b[j][i]**2
     return result ** 0.5
 
+def load_data(N,train_test):
+    '''
+    :param N:获取数据的个数
+    :param train_test: 0为train，1为test
+    :return: 返回两个ndarray，第一个为N条向量，第二个为N个label
+    '''
+    if train_test == 0:
+        data_mix = tfds.load('mnist', split='train',shuffle_files=True)
+        data_mix = data_mix.shuffle(1024).batch(128).repeat(5).prefetch(10)
+    else:
+        data_mix = tfds.load('mnist', split='test', shuffle_files=True)
+        data_mix = data_mix.shuffle(1024).batch(128).repeat(5).prefetch(10)
+    total_count = 0
+    ret_data = np.zeros((N, 28, 28, 1))
+    ret_label = np.zeros((N))
+    for each_data_set in tfds.as_numpy(data_mix):
+        data, labels = each_data_set["image"], each_data_set["label"]
+        for i in range(labels.shape[0]):
+            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
+                ret_data[total_count] = data[i]
+                ret_label[total_count] = labels[i]
+                total_count += 1
+                #当数量达到要求的就返回
+                if total_count == N:
+                    return ret_data,ret_label
+    #到达这里说明数量不够到N，将前面所有的返回
+    return ret_data,ret_label
+
 
 if __name__ == "__main__":
-    train = tfds.load('mnist', split='train', shuffle_files=True)
-    train = train.shuffle(1024).batch(128).repeat(5).prefetch(10)
-    W, b = weight_initialise()
-    total = 0
-    for example in tfds.as_numpy(train):
-        data, labels = example["image"], example["label"]
-        num = 0
-        for i in range(labels.shape[0]):
-            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
-                num += 1
-        pick_data = np.zeros((num, 28, 28, 1))
-        pick_label = np.zeros((num))
-        num = 0
-        for i in range(labels.shape[0]):
-            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
-                pick_data[num] = data[i]  # 取出训练集中所有的012
-                pick_label[num] = labels[i]
-                num += 1
-        total += num
-        images = data_pre_processing(pick_data)
-        old_W, old_b = weight_initialise()
-        record(old_W, old_b, W, b)
-        result = forward_all(images, W, b, pick_label)  # 选一张图片进行计算
-        for i in range(2):
-            old_W[i] = old_W[i] - W[i]
-            old_b[i] = old_b[i] - b[i]
-        if calculate(old_W, old_b) < 1:
-            break
-    print("训练集个数：", total)
+    print("-----------正在加载训练集------------")
+    train_size = 300
+    pick_data_train, pick_label_train=load_data(train_size, 0)#加载数据
+    images_train = data_pre_processing(pick_data_train)#数据预处理
+    W, b = weight_initialise()#初始化权值
+    print("--------加载完成，开始训练模型--------")
+    result = forward_all(images_train, W, b, pick_label_train)  # 选一张图片进行计算
+    print(result)
+    print("训练集个数：", train_size)
+    print("--------------训练完成---------------")
+    #print(result)
 
-        #  print(result)
-
-    total = 0
+    test_size = 50
     error = 0
-    test = tfds.load('mnist', split='test', shuffle_files=True)
-    test = test.shuffle(1024).batch(128).repeat(5).prefetch(10)
-    round = 0
-    for example in tfds.as_numpy(test):
-        data, labels = example["image"], example["label"]
-        num = 0
-        for i in range(labels.shape[0]):
-            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
-                num += 1
-        pick_data = np.zeros((num, 28, 28, 1))
-        pick_label = np.zeros((num))
-        num = 0
-        for i in range(labels.shape[0]):
-            if labels[i] == 0 or labels[i] == 1 or labels[i] == 2:
-                pick_data[num] = data[i]  # 取出训练集中所有的012
-                pick_label[num] = labels[i]
-                num += 1
-        images = data_pre_processing(pick_data)
-        total += num
-        error += predict(images, W, b, pick_label)  # 选一张图片进行计算
-        if round == 5:
-            break
-        else:
-            round += 1
-    print("测试集总数：", total)
+
+    print("-----------正在加载测试集------------")
+    pick_data_test, pick_label_test = load_data(test_size, 1) #加载测试技术局
+    images_test = data_pre_processing(pick_data_test) #images
+    print("------------正在预测结果-------------")
+    error = predict(images_test, W, b, pick_label_test)
+    print("---------------预测结束--------------")
+    print("测试集总数：", test_size)
     print("错误数：", error)
-    print("错误率：", error / total)
-    # print(W, b)
+    print("错误率：", error / test_size)
