@@ -1,10 +1,11 @@
 from math import exp
 
-import tensorflow as tf
+#import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
 import matplotlib.pyplot as plt
 import opt
+from math import log
 
 params = []
 
@@ -134,6 +135,7 @@ def pooling_forward(X, X_shape, pool_w, pool_h):
             write += 1
     return result
 
+
 def forward(X, W, b):
     '''
     封装好单张图片的前向传播：原始图片(28*28)->im2col和卷积(24*24*3)->池化(12*12*3)->im2col和全连接(1*3)
@@ -167,7 +169,11 @@ def forward(X, W, b):
     #print(result)
     return result
 
-def forward_all(images,W,b,label):
+def loss(y_res, y_p):
+    return sum([-y_res[i] * log(y_p[i]) for i in range(y_res.shape[0])])
+
+
+def forward_all(images, W, b, label, lrate):
     '''
     :param images:所有图片
     :param W: 权值矩阵
@@ -177,14 +183,19 @@ def forward_all(images,W,b,label):
     result=[]
     i = 0
     for image in images:
+        j = 0
+        while j != 10:
+            params.clear()#每一轮清除所有用于bp的参数
+            y_res = np.zeros((3))
+            y_res[int(label[i])] = 1
+            params.append(y_res)#加入bp最后一层的参数
+            result.append(forward(image, W, b))
+            W, b = opt.bp(W, b, params, lrate)
+            j = j + 1
         if i % 10 == 0:
-            print("当前训练到:%d/%d个图像" % (i,images.shape[0]))
-        params.clear()#每一轮清除所有用于bp的参数
-        y_res = np.zeros((3))
-        y_res[int(label[i])] = 1
-        params.append(y_res)#加入bp最后一层的参数
-        result.append(forward(image, W, b))
-        opt.bp(W, b, params, 0.001)
+            print("当前训练到:%d/%d个图像" % (i,images.shape[0]), end='')
+            loss_t = loss(params[0], params[5])
+            print('loss=', round(loss_t, 2))
         i += 1
     return result
 
@@ -225,10 +236,10 @@ def weight_initialise():
     '''
     #卷积层
     W1 = np.ones((3, 5 * 5, 1))
-    b1 = np.zeros((3))
+    b1 = np.ones((3))
     #全连接层
     W2 = np.ones((3 , 12*12, 1))
-    b2 = np.zeros((3))
+    b2 = np.ones((3))
     #组合
     W=[W1,W2]
     b=[b1,b2]
@@ -291,13 +302,13 @@ def load_data(N,train_test):
 
 if __name__ == "__main__":
     print("-----------正在加载训练集------------")
-    train_size = 300
+    train_size = 1000
     pick_data_train, pick_label_train=load_data(train_size, 0)#加载数据
     images_train = data_pre_processing(pick_data_train)#数据预处理
     W, b = weight_initialise()#初始化权值
     print("--------加载完成，开始训练模型--------")
-    result = forward_all(images_train, W, b, pick_label_train)  # 选一张图片进行计算
-    print(result)
+    result = forward_all(images_train, W, b, pick_label_train, 0.001) # 选一张图片进行计算
+    #print(result)
     print("训练集个数：", train_size)
     print("--------------训练完成---------------")
     #print(result)

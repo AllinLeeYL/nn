@@ -117,16 +117,16 @@ softmax激活函数定义为$y_i = \frac{e^{x_i}}{\sum_{k=1}^{n}{x_k}}$，其导
 
 \subsubsection{全连接层}
 
-全连接层可以由$y=\sum_{k=1}^{n}{x_k w_k} + b$，其中$w_k$是第$k$个输入$x_k$的权重。因此其对$w_k$和$b$的导数定义为如\refeq{eq:affine-bp}。
+全连接层可以由$x=\sum_{k=1}^{n}{a_k w_k} + b$，其中$w_k$是第$k$个输入$a_k$的权重。因此其对$w_k$和$b$的导数定义为如\refeq{eq:affine-bp}。
 
 \begin{equation}\label{eq:affine-bp}
 \begin{aligned}
-\frac{\Delta y}{\Delta w_i} &= x_i \\
-\frac{\Delta y}{\Delta b} &= 1
+\frac{\partial x}{\partial w_i} &= a_i \\
+\frac{\partial x}{\partial b} &= 1
 \end{aligned}
 \end{equation}
 
-由此得到CELF对权重$w_k$和偏置$b$的导数如\refeq{eq:CELF-affline-w-b}。其中$x_i$为softmax激活函数的输入，$w_j$为全连接层第$j$输入$a_j$的权重
+由此得到CELF对权重$w_k$和偏置$b$的导数如\refeq{eq:CELF-affline-w-b}。其中$x_i$为softmax激活函数的输入，$w_j$为全连接层第$j$输入$a_j$的权重。
 
 \begin{equation}\label{eq:CELF-affline-w-b}
 \begin{aligned}
