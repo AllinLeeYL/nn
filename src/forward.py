@@ -170,7 +170,7 @@ def forward(X, W, b):
     return result
 
 def loss(y_res, y_p):
-    return sum([-y_res[i] / log(y_p[i]) for i in range(y_res.shape[0])])
+    return sum([-y_res[i] * log(y_p[i]) for i in range(y_res.shape[0])])
 
 
 def forward_all(images, W, b, label, lrate):
@@ -191,14 +191,11 @@ def forward_all(images, W, b, label, lrate):
             params.append(y_res)#加入bp最后一层的参数
             result.append(forward(image, W, b))
             W, b = opt.bp(W, b, params, lrate)
-            loss_t = loss(params[0], params[5])
-            print('loss=', round(loss_t, 2), end=' ')
-            if loss_t > 100:
-                j = 0
             j = j + 1
-        print('')
         if i % 10 == 0:
-            print("当前训练到:%d/%d个图像" % (i,images.shape[0]))
+            print("当前训练到:%d/%d个图像" % (i,images.shape[0]), end='')
+            loss_t = loss(params[0], params[5])
+            print('loss=', round(loss_t, 2))
         i += 1
     return result
 
@@ -239,10 +236,10 @@ def weight_initialise():
     '''
     #卷积层
     W1 = np.ones((3, 5 * 5, 1))
-    b1 = np.zeros((3))
+    b1 = np.ones((3))
     #全连接层
     W2 = np.ones((3 , 12*12, 1))
-    b2 = np.zeros((3))
+    b2 = np.ones((3))
     #组合
     W=[W1,W2]
     b=[b1,b2]
@@ -305,7 +302,7 @@ def load_data(N,train_test):
 
 if __name__ == "__main__":
     print("-----------正在加载训练集------------")
-    train_size = 50
+    train_size = 1000
     pick_data_train, pick_label_train=load_data(train_size, 0)#加载数据
     images_train = data_pre_processing(pick_data_train)#数据预处理
     W, b = weight_initialise()#初始化权值

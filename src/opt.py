@@ -50,17 +50,17 @@ def bp(W, b, params, alpha):
     W_old = copy(W)
     # 梯度下降
     for i in range(W[0].shape[0]):
-        t = -(y_p[i] - y_res[i]) * alpha
+        t = (y_p[i] - y_res[i]) * alpha
         # 全连接层参数-偏置b
-        b[1][i] -= alpha if t > 0 else -alpha
+        b[1][i] -= t
         # 全连接层参数-权值w
         for j in range(W[1].shape[1]):
-            W[1][i, j] -= alpha if t*a[i, j] > 0 else -alpha
+            W[1][i, j] -= t*a[i, j]
         # 卷积层参数-偏置b
         total = __affine_sum_b(W_old, c, i, n)
-        b[0][i] -= alpha if t * total > 0 else -alpha
+        b[0][i] -= t * total
         # 卷积层参数-权值w
         for k in range(W[0].shape[1]):
             total = __affine_sum_w(W_old, c, u, i, k, n)
-            W[0][i, k] -= alpha if t * total > 0 else -alpha
+            W[0][i, k] -= t * total
     return W, b
