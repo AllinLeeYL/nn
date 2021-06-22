@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import opt
 from math import log
+import random
 
 params = []
 
@@ -182,21 +183,33 @@ def forward_all(images, W, b, label, lrate):
     '''
     result=[]
     i = 0
-    for image in images:
-        j = 0
-        while j != 10:
-            params.clear()#每一轮清除所有用于bp的参数
-            y_res = np.zeros((3))
-            y_res[int(label[i])] = 1
-            params.append(y_res)#加入bp最后一层的参数
-            result.append(forward(image, W, b))
-            W, b = opt.bp(W, b, params, lrate)
-            j = j + 1
-        if i % 10 == 0:
-            print("当前训练到:%d/%d个图像" % (i,images.shape[0]), end='')
+    train_round = 20 #训练轮次
+    for k in range(train_round):
+        #随机梯度下降，每次打乱顺序
+        data_mix = list(zip(images, label))
+        random.shuffle(data_mix)
+        images, label = zip(*data_mix)
+        images = np.array(images)
+        label = np.array(label)
+        for image in images:
+            j = 0
+            while j != 1:
+                params.clear()#每一轮清除所有用于bp的参数
+                y_res = np.zeros((3))
+                y_res[int(label[i])] = 1
+                params.append(y_res)#加入bp最后一层的参数
+                result.append(forward(image, W, b))
+                print("真实结果：", y_res)
+                print("预测结果：", params[5])
+                W, b = opt.bp(W, b, params, lrate)
+                j = j + 1
+            if i % 10 == 0:
+                print("当前训练到第%d/%d轮:%d/%d个图像" % (k,train_round,i,images.shape[0]), end='')
             loss_t = loss(params[0], params[5])
             print('loss=', round(loss_t, 2))
-        i += 1
+            i += 1
+        i=0
+    print("last label:",params[0])
     return result
 
 def predict(images,W,b,label):
@@ -211,6 +224,8 @@ def predict(images,W,b,label):
     error = 0
     for image in images:
         result = (forward(image, W, b))
+        print("真实结果：", label[i])
+        print("预测结果：", result)
         if np.argmax(result) != label[i]:
             error += 1
         i += 1
@@ -302,12 +317,12 @@ def load_data(N,train_test):
 
 if __name__ == "__main__":
     print("-----------正在加载训练集------------")
-    train_size = 1000
+    train_size = 200
     pick_data_train, pick_label_train=load_data(train_size, 0)#加载数据
     images_train = data_pre_processing(pick_data_train)#数据预处理
     W, b = weight_initialise()#初始化权值
     print("--------加载完成，开始训练模型--------")
-    result = forward_all(images_train, W, b, pick_label_train, 0.001) # 选一张图片进行计算
+    result = forward_all(images_train, W, b, pick_label_train, 0.0001) # 选一张图片进行计算
     #print(result)
     print("训练集个数：", train_size)
     print("--------------训练完成---------------")
@@ -317,7 +332,7 @@ if __name__ == "__main__":
     error = 0
 
     print("-----------正在加载测试集------------")
-    pick_data_test, pick_label_test = load_data(test_size, 1) #加载测试技术局
+    pick_data_test, pick_label_test = load_data(test_size, 1) #加载测试集
     images_test = data_pre_processing(pick_data_test) #images
     print("------------正在预测结果-------------")
     error = predict(images_test, W, b, pick_label_test)
